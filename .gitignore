@@ -51,6 +51,8 @@ out
 # Env
 .env
 .env.*
+.env*
 !.env.example
 
 test-output
+.vercel
