@@ -2,5 +2,6 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "installCommand": "pnpm install --frozen-lockfile",
-  "buildCommand": "pnpm nx run @dyktig/supabase:build && cd apps/web && pnpm exec next build && cp -R .next ../../.next"
+  "buildCommand": "pnpm nx run @dyktig/supabase:build && cd apps/web && pnpm exec next build",
+  "outputDirectory": "apps/web/.next"
 }
