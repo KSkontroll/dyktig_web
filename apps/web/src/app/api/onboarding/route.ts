@@ -1,38 +1,34 @@
 import { NextResponse } from 'next/server';
 
+import { getValidInviteByToken } from '@/lib/onboarding/invite';
 import { sendOnboardingSubmittedEmail } from '@/lib/email/send-onboarding-email';
-import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { validateOnboardingPayload } from '@/lib/validation/onboarding';
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createSupabaseServerClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const body = await request.json();
+    const token = typeof body.token === 'string' ? body.token.trim() : '';
 
-    if (!user) {
-      return NextResponse.json({ error: 'Du må være innlogget.' }, { status: 401 });
+    if (!token) {
+      return NextResponse.json({ error: 'Manglende invitasjonstoken.' }, { status: 400 });
     }
 
-    const payload = await request.json();
-    const validated = validateOnboardingPayload(payload);
+    const invite = await getValidInviteByToken(token);
+    if (!invite) {
+      return NextResponse.json({ error: 'Lenken er ugyldig eller utløpt.' }, { status: 403 });
+    }
+
+    const validated = validateOnboardingPayload(body);
     if (!validated.ok) {
       return NextResponse.json({ error: validated.error }, { status: 400 });
     }
 
-    const { data: invite } = await supabase
-      .from('onboarding_invites')
-      .select('id, lead_id')
-      .eq('email', user.email ?? '')
-      .order('sent_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    const { error } = await supabase.from('onboarding_svar').insert({
-      user_id: user.id,
-      lead_id: invite?.lead_id ?? null,
-      invite_id: invite?.id ?? null,
+    const admin = createSupabaseAdminClient();
+    const { error } = await admin.from('onboarding_svar').insert({
+      user_id: null,
+      lead_id: invite.lead_id,
+      invite_id: invite.id,
       org_nr: validated.data.orgNr,
       foretaksnavn: validated.data.foretaksnavn,
       selskapsform: validated.data.selskapsform,
@@ -72,12 +68,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Kunne ikke lagre skjemaet.' }, { status: 500 });
     }
 
-    if (invite?.id) {
-      await supabase
-        .from('onboarding_invites')
-        .update({ status: 'completed', completed_at: new Date().toISOString() })
-        .eq('id', invite.id);
-    }
+    await admin
+      .from('onboarding_invites')
+      .update({ status: 'completed', completed_at: new Date().toISOString() })
+      .eq('id', invite.id);
 
     try {
       await sendOnboardingSubmittedEmail(validated.data);

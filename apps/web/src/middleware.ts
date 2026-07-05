@@ -41,15 +41,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (path === '/onboarding' && !user) {
-    const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = '/onboarding/login';
-    return NextResponse.redirect(loginUrl);
-  }
-
   return response;
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/onboarding', '/onboarding/login'],
+  matcher: ['/admin/:path*'],
 };

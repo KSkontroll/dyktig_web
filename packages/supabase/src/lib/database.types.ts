@@ -69,6 +69,8 @@ export type Database = {
           sent_at: string;
           completed_at: string | null;
           status: string;
+          token: string;
+          expires_at: string;
         };
         Insert: {
           id?: string;
@@ -78,6 +80,8 @@ export type Database = {
           sent_at?: string;
           completed_at?: string | null;
           status?: string;
+          token: string;
+          expires_at: string;
         };
         Update: {
           id?: string;
@@ -87,13 +91,15 @@ export type Database = {
           sent_at?: string;
           completed_at?: string | null;
           status?: string;
+          token?: string;
+          expires_at?: string;
         };
         Relationships: [];
       };
       onboarding_svar: {
         Row: {
           id: string;
-          user_id: string;
+          user_id: string | null;
           lead_id: string | null;
           invite_id: string | null;
           created_at: string;
@@ -130,7 +136,7 @@ export type Database = {
         };
         Insert: {
           id?: string;
-          user_id: string;
+          user_id: string | null;
           lead_id?: string | null;
           invite_id?: string | null;
           created_at?: string;

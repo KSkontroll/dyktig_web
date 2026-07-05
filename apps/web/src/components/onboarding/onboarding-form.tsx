@@ -9,7 +9,6 @@ import {
   FormSuccessCard,
   PrivacyLink,
 } from '@/components/forms/form-shell';
-import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { sx } from '@/lib/site/sx';
 
 const TJENESTER = [
@@ -23,7 +22,13 @@ const TJENESTER = [
   'Tripletex-opplæring',
 ] as const;
 
-export function OnboardingForm() {
+export function OnboardingForm({
+  token,
+  inviteEmail,
+}: {
+  token: string;
+  inviteEmail: string;
+}) {
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -80,25 +85,25 @@ export function OnboardingForm() {
       let firmaattestUrl: string | null = null;
 
       if (firmaattest) {
-        const supabase = createSupabaseBrowserClient();
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (!user) throw new Error('Du må være innlogget for å laste opp fil.');
+        const uploadData = new FormData();
+        uploadData.append('token', token);
+        uploadData.append('file', firmaattest);
 
-        const path = `${user.id}/${Date.now()}-${firmaattest.name}`;
-        const { error: uploadError } = await supabase.storage
-          .from('firmaattester')
-          .upload(path, firmaattest);
-
-        if (uploadError) throw uploadError;
-        firmaattestUrl = path;
+        const uploadResponse = await fetch('/api/onboarding/upload', {
+          method: 'POST',
+          body: uploadData,
+        });
+        const uploadResult = await uploadResponse.json();
+        if (!uploadResponse.ok) {
+          throw new Error(uploadResult.error ?? 'Kunne ikke laste opp firmaattest.');
+        }
+        firmaattestUrl = uploadResult.path;
       }
 
       const response = await fetch('/api/onboarding', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...payload, firmaattestUrl }),
+        body: JSON.stringify({ ...payload, firmaattestUrl, token }),
       });
 
       const data = await response.json();
@@ -202,7 +207,14 @@ export function OnboardingForm() {
           </label>
           <label className="lbl">
             E-postadresse <span className="req">*</span>
-            <input className="fld" name="kontaktEpost" type="email" required placeholder="navn@bedriften.no" />
+            <input
+              className="fld"
+              name="kontaktEpost"
+              type="email"
+              required
+              defaultValue={inviteEmail}
+              placeholder="navn@bedriften.no"
+            />
           </label>
           <label className="lbl">
             Telefon / mobil <span className="req">*</span>

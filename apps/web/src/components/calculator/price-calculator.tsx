@@ -331,11 +331,8 @@ export function PriceCalculator() {
                 Takk! Vi har mottatt forespørselen din.
               </p>
               <p style={sx('margin:0;font-size:14.5px;color:rgba(30,37,34,.75)')}>
-                Vi tar kontakt innen én virkedag med et uforpliktende tilbud. Du kan også{' '}
-                <a href="/onboarding/login" style={sx('color:var(--c-ad);font-weight:600')}>
-                  fylle ut oppstartsskjemaet
-                </a>{' '}
-                med én gang.
+                Vi tar kontakt innen én virkedag med et uforpliktende tilbud og lenke til
+                oppstartsskjemaet.
               </p>
             </div>
           ) : (
