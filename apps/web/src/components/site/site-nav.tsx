@@ -58,6 +58,14 @@ export function SiteNav({ variant = 'home' }: SiteNavProps) {
               ))}
             </div>
             <a
+              href="/onboarding/login"
+              style={sx(
+                'color:rgba(255,255,255,.7);font-size:14px;font-weight:500;text-decoration:none',
+              )}
+            >
+              Logg inn
+            </a>
+            <a
               href="#tilbud"
               style={sx(
                 'background:var(--c-a);color:var(--c-p);font-size:15px;font-weight:700;text-decoration:none;padding:10px 20px;border-radius:9999px',

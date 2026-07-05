@@ -19,3 +19,33 @@ body {
     color 0.8s ease,
     border-color 0.8s ease;
 }
+
+.fld {
+  padding: 13px;
+  border: 1.5px solid rgba(30, 37, 34, 0.16);
+  border-radius: 10px;
+  font-family: var(--font-barlow), 'Barlow', sans-serif;
+  font-size: 14.5px;
+  color: #1e2522;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  background: #fff;
+}
+
+.fld:focus {
+  border-color: var(--c-a);
+}
+
+.lbl {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(30, 37, 34, 0.72);
+}
+
+.req {
+  color: var(--c-ad);
+}
