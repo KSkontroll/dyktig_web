@@ -39,7 +39,8 @@ export function AdminDashboard() {
   const [invites, setInvites] = useState<Invite[]>([]);
   const [svar, setSvar] = useState<OnboardingSvar[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sendingId, setSendingId] = useState<string | null>(null);
+  const [sendingKey, setSendingKey] = useState<string | null>(null);
+  const [manualEmail, setManualEmail] = useState('');
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -62,23 +63,42 @@ export function AdminDashboard() {
     setLoading(false);
   }
 
+  async function postInvite(email: string, leadId?: string) {
+    const response = await fetch('/api/admin/invite', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(leadId ? { leadId, email } : { email }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error ?? 'Kunne ikke sende skjema.');
+    setMessage(`Onboarding-lenke sendt til ${email}.`);
+    await loadData();
+  }
+
   async function sendInvite(lead: Lead) {
-    setSendingId(lead.id);
+    setSendingKey(`lead:${lead.id}`);
     setMessage(null);
     try {
-      const response = await fetch('/api/admin/invite', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ leadId: lead.id, email: lead.epost }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? 'Kunne ikke sende skjema.');
-      setMessage(`Onboarding-lenke sendt til ${lead.epost}.`);
-      await loadData();
+      await postInvite(lead.epost, lead.id);
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Sending feilet.');
     } finally {
-      setSendingId(null);
+      setSendingKey(null);
+    }
+  }
+
+  async function sendManualInvite(emailOverride?: string) {
+    const email = (emailOverride ?? manualEmail).trim();
+    if (!email) return;
+    setSendingKey(emailOverride ? `invite:${email}` : 'manual');
+    setMessage(null);
+    try {
+      await postInvite(email);
+      if (!emailOverride) setManualEmail('');
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Sending feilet.');
+    } finally {
+      setSendingKey(null);
     }
   }
 
@@ -90,6 +110,7 @@ export function AdminDashboard() {
   }
 
   const inviteByLead = new Map(invites.filter((i) => i.lead_id).map((i) => [i.lead_id!, i]));
+  const manualInvites = invites.filter((i) => !i.lead_id);
 
   return (
     <FormPageShell
@@ -118,6 +139,79 @@ export function AdminDashboard() {
       {loading ? <p>Laster …</p> : null}
 
       <section style={sx('display:flex;flex-direction:column;gap:28px')}>
+        <div style={sx('background:#fff;border:1px solid rgba(11,36,64,.1);border-radius:18px;padding:28px')}>
+          <h2 style={sx("margin:0 0 8px;font-family:'Inter Tight',sans-serif;font-size:24px;color:var(--c-p)")}>
+            Send skjema manuelt
+          </h2>
+          <p style={sx('margin:0 0 18px;font-size:14px;color:rgba(30,37,34,.65)')}>
+            For kunder som ikke har brukt priskalkulatoren — de får innloggingslenke på e-post.
+          </p>
+          <form
+            style={sx('display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end')}
+            onSubmit={(e) => {
+              e.preventDefault();
+              void sendManualInvite();
+            }}
+          >
+            <label style={sx('flex:1;min-width:220px')}>
+              <span style={sx('display:block;margin-bottom:6px;font-size:13px;font-weight:600;color:var(--c-p)')}>
+                E-post
+              </span>
+              <input
+                type="email"
+                value={manualEmail}
+                onChange={(e) => setManualEmail(e.target.value)}
+                placeholder="kunde@firma.no"
+                required
+                style={sx(
+                  'width:100%;padding:12px 14px;border:1.5px solid rgba(11,36,64,.15);border-radius:10px;font-size:15px;font-family:inherit',
+                )}
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={sendingKey === 'manual' || !manualEmail.trim()}
+              style={sx(
+                "background:var(--c-a);color:var(--c-p);font-family:'Barlow',sans-serif;font-size:14px;font-weight:700;padding:12px 22px;border:none;border-radius:9999px;cursor:pointer",
+              )}
+            >
+              {sendingKey === 'manual' ? 'Sender …' : 'Send skjema'}
+            </button>
+          </form>
+          {manualInvites.length > 0 ? (
+            <div style={sx('margin-top:22px;display:flex;flex-direction:column;gap:10px')}>
+              <p style={sx('margin:0;font-size:13px;font-weight:600;color:rgba(30,37,34,.55)')}>
+                Tidligere manuelle utsendelser
+              </p>
+              {manualInvites.map((invite) => (
+                <div
+                  key={invite.id}
+                  style={sx(
+                    'display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding:14px;border:1px solid rgba(11,36,64,.08);border-radius:12px',
+                  )}
+                >
+                  <div>
+                    <p style={sx('margin:0;font-weight:600;color:var(--c-p)')}>{invite.email}</p>
+                    <p style={sx('margin:4px 0 0;font-size:13px;color:rgba(30,37,34,.55)')}>
+                      Sendt {new Date(invite.sent_at).toLocaleString('nb-NO')} · {invite.status}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={sendingKey === `invite:${invite.email}`}
+                    onClick={() => void sendManualInvite(invite.email)}
+                    style={sx(
+                      "background:transparent;border:1.5px solid rgba(11,36,64,.2);color:var(--c-p);font-family:'Barlow',sans-serif;font-size:13px;font-weight:600;padding:8px 16px;border-radius:9999px;cursor:pointer",
+                    )}
+                  >
+                    {sendingKey === `invite:${invite.email}` ? 'Sender …' : 'Send på nytt'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
         <div style={sx('background:#fff;border:1px solid rgba(11,36,64,.1);border-radius:18px;padding:28px')}>
           <h2 style={sx("margin:0 0 18px;font-family:'Inter Tight',sans-serif;font-size:24px;color:var(--c-p)")}>
             Leads fra kalkulator
@@ -151,13 +245,13 @@ export function AdminDashboard() {
                     </div>
                     <button
                       type="button"
-                      disabled={sendingId === lead.id}
+                      disabled={sendingKey === `lead:${lead.id}`}
                       onClick={() => void sendInvite(lead)}
                       style={sx(
                         "background:var(--c-a);color:var(--c-p);font-family:'Barlow',sans-serif;font-size:14px;font-weight:700;padding:10px 18px;border:none;border-radius:9999px;cursor:pointer",
                       )}
                     >
-                      {sendingId === lead.id ? 'Sender …' : invite ? 'Send på nytt' : 'Send skjema'}
+                      {sendingKey === `lead:${lead.id}` ? 'Sender …' : invite ? 'Send på nytt' : 'Send skjema'}
                     </button>
                   </div>
                 );
