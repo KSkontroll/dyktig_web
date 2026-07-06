@@ -10,6 +10,7 @@ import {
   PrivacyLink,
 } from '@/components/forms/form-shell';
 import { sx } from '@/lib/site/sx';
+import { MAX_AKSJONAERER, type Aksjonaer } from '@/lib/validation/onboarding';
 
 const TJENESTER = [
   'Løpende bokføring',
@@ -34,6 +35,23 @@ export function OnboardingForm({
   const [error, setError] = useState<string | null>(null);
   const [tjenester, setTjenester] = useState<string[]>([]);
   const [firmaattest, setFirmaattest] = useState<File | null>(null);
+  const [aksjonaerer, setAksjonaerer] = useState<Aksjonaer[]>([{ navn: '', eierandel: '' }]);
+
+  function updateAksjonaer(index: number, field: keyof Aksjonaer, value: string) {
+    setAksjonaerer((current) =>
+      current.map((item, i) => (i === index ? { ...item, [field]: value } : item)),
+    );
+  }
+
+  function addAksjonaer() {
+    if (aksjonaerer.length >= MAX_AKSJONAERER) return;
+    setAksjonaerer((current) => [...current, { navn: '', eierandel: '' }]);
+  }
+
+  function removeAksjonaer(index: number) {
+    if (aksjonaerer.length <= 1) return;
+    setAksjonaerer((current) => current.filter((_, i) => i !== index));
+  }
 
   function toggleTjeneste(value: string) {
     setTjenester((current) =>
@@ -63,8 +81,7 @@ export function OnboardingForm({
       kontaktEpost: String(form.get('kontaktEpost') ?? ''),
       kontaktTelefon: String(form.get('kontaktTelefon') ?? ''),
       signaturrett: String(form.get('signaturrett') ?? ''),
-      reelleRettighetshavere: String(form.get('reelleRettighetshavere') ?? ''),
-      eierandeler: String(form.get('eierandeler') ?? ''),
+      aksjonaerer,
       pep: String(form.get('pep') ?? ''),
       statsborgerskap: String(form.get('statsborgerskap') ?? ''),
       bank: String(form.get('bank') ?? ''),
@@ -82,23 +99,27 @@ export function OnboardingForm({
     };
 
     try {
-      let firmaattestUrl: string | null = null;
-
-      if (firmaattest) {
-        const uploadData = new FormData();
-        uploadData.append('token', token);
-        uploadData.append('file', firmaattest);
-
-        const uploadResponse = await fetch('/api/onboarding/upload', {
-          method: 'POST',
-          body: uploadData,
-        });
-        const uploadResult = await uploadResponse.json();
-        if (!uploadResponse.ok) {
-          throw new Error(uploadResult.error ?? 'Kunne ikke laste opp firmaattest.');
-        }
-        firmaattestUrl = uploadResult.path;
+      if (aksjonaerer.some((item) => !item.navn.trim() || !item.eierandel.trim())) {
+        throw new Error('Hver aksjonær må ha navn og eierandel.');
       }
+
+      if (!firmaattest) {
+        throw new Error('Firmaattest må lastes opp.');
+      }
+
+      const uploadData = new FormData();
+      uploadData.append('token', token);
+      uploadData.append('file', firmaattest);
+
+      const uploadResponse = await fetch('/api/onboarding/upload', {
+        method: 'POST',
+        body: uploadData,
+      });
+      const uploadResult = await uploadResponse.json();
+      if (!uploadResponse.ok) {
+        throw new Error(uploadResult.error ?? 'Kunne ikke laste opp firmaattest.');
+      }
+      const firmaattestUrl = uploadResult.path as string;
 
       const response = await fetch('/api/onboarding', {
         method: 'POST',
@@ -182,12 +203,15 @@ export function OnboardingForm({
             <input className="fld" name="nettside" placeholder="www.bedriften.no" />
           </label>
           <label className="lbl" style={sx('grid-column:1 / -1')}>
-            Last opp firmaattest{' '}
-            <span style={sx('font-weight:500;color:rgba(30,37,34,.5)')}>(PDF/bilde, valgfritt)</span>
+            Last opp firmaattest <span className="req">*</span>
+            <span style={sx('display:block;font-weight:500;color:rgba(30,37,34,.5);font-size:13px;margin-top:2px')}>
+              PDF eller bilde
+            </span>
             <input
               className="fld"
               type="file"
               accept=".pdf,image/*"
+              required
               style={sx('padding:10px')}
               onChange={(event) => setFirmaattest(event.target.files?.[0] ?? null)}
             />
@@ -237,29 +261,89 @@ export function OnboardingForm({
         title="Eiere og reelle rettighetshavere"
         hint="Påkrevd for kundekontroll etter hvitvaskingsloven. Oppgi alle som eier eller kontrollerer 25 % eller mer."
       >
-        <FormGrid>
-          <label className="lbl">
-            Reelle rettighetshavere (navn) <span className="req">*</span>
-            <input className="fld" name="reelleRettighetshavere" required placeholder="Navn, evt. flere adskilt med komma" />
-          </label>
-          <label className="lbl">
-            Eierandel(er) <span className="req">*</span>
-            <input className="fld" name="eierandeler" required placeholder="f.eks. 60 % / 40 %" />
-          </label>
-          <label className="lbl">
-            Er noen av eierne politisk eksponert person (PEP)? <span className="req">*</span>
-            <select className="fld" name="pep" required defaultValue="">
-              <option value="" disabled>Velg …</option>
-              <option>Nei</option>
-              <option>Ja</option>
-              <option>Usikker</option>
-            </select>
-          </label>
-          <label className="lbl">
-            Statsborgerskap til eier(e)
-            <input className="fld" name="statsborgerskap" placeholder="f.eks. norsk" />
-          </label>
-        </FormGrid>
+        <div style={sx('display:flex;flex-direction:column;gap:16px')}>
+          {aksjonaerer.map((aksjonaer, index) => (
+            <div
+              key={index}
+              style={sx(
+                'padding:18px;border:1px solid rgba(11,36,64,.1);border-radius:14px;background:rgba(251,251,250,.7)',
+              )}
+            >
+              <div
+                style={sx(
+                  'display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px',
+                )}
+              >
+                <p style={sx('margin:0;font-size:15px;font-weight:700;color:var(--c-p)')}>
+                  Aksjonær {index + 1}
+                </p>
+                {aksjonaerer.length > 1 ? (
+                  <button
+                    type="button"
+                    onClick={() => removeAksjonaer(index)}
+                    style={sx(
+                      'background:none;border:none;color:#8b1c1c;font-size:13px;font-weight:600;cursor:pointer;padding:0',
+                    )}
+                  >
+                    Fjern
+                  </button>
+                ) : null}
+              </div>
+              <FormGrid>
+                <label className="lbl">
+                  Navn <span className="req">*</span>
+                  <input
+                    className="fld"
+                    required
+                    value={aksjonaer.navn}
+                    onChange={(event) => updateAksjonaer(index, 'navn', event.target.value)}
+                    placeholder="For- og etternavn"
+                  />
+                </label>
+                <label className="lbl">
+                  Eierandel <span className="req">*</span>
+                  <input
+                    className="fld"
+                    required
+                    value={aksjonaer.eierandel}
+                    onChange={(event) => updateAksjonaer(index, 'eierandel', event.target.value)}
+                    placeholder="f.eks. 60 %"
+                  />
+                </label>
+              </FormGrid>
+            </div>
+          ))}
+
+          {aksjonaerer.length < MAX_AKSJONAERER ? (
+            <button
+              type="button"
+              onClick={addAksjonaer}
+              style={sx(
+                'align-self:flex-start;background:none;border:1.5px dashed rgba(11,36,64,.22);color:var(--c-ad);font-size:14px;font-weight:700;padding:10px 16px;border-radius:9999px;cursor:pointer',
+              )}
+            >
+              + Legg til aksjonær ({aksjonaerer.length}/{MAX_AKSJONAERER})
+            </button>
+          ) : null}
+        </div>
+
+        <div style={sx('margin-top:20px')}>
+          <FormGrid>
+            <label className="lbl">
+              Er noen av eierne politisk eksponert person (PEP)? <span className="req">*</span>
+              <select className="fld" name="pep" required defaultValue="">
+                <option value="" disabled>Velg …</option>
+                <option>Nei</option>
+                <option>Ja</option>
+                <option>Usikker</option>
+              </select>
+            </label>
+            <label className="lbl">
+              Statsborgerskap til eier(e)
+              <input className="fld" name="statsborgerskap" placeholder="f.eks. norsk" />
+            </label>
+          </FormGrid>
+        </div>
       </FormSection>
 
       <FormSection step={4} title="Bank og systemer">

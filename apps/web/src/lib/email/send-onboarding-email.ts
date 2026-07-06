@@ -52,7 +52,7 @@ export async function sendOnboardingSubmittedEmail(payload: OnboardingPayload) {
     `Foretak: ${payload.foretaksnavn} (${payload.orgNr})`,
     `Kontakt: ${payload.kontaktNavn} · ${payload.kontaktEpost} · ${payload.kontaktTelefon}`,
     `Tjenester: ${payload.tjenester.join(', ') || 'Ingen valgt'}`,
-    payload.firmaattestUrl ? 'Firmaattest: lastet opp' : 'Firmaattest: ikke lastet opp',
+    'Firmaattest: lastet opp',
     '',
     `Se alle svar i admin: ${adminUrl}`,
   ].join('\n');
@@ -62,7 +62,7 @@ export async function sendOnboardingSubmittedEmail(payload: OnboardingPayload) {
     <p style="margin:0 0 8px;">Foretak: ${payload.foretaksnavn} (${payload.orgNr})</p>
     <p style="margin:0 0 8px;">Kontakt: ${payload.kontaktNavn} · <a href="mailto:${payload.kontaktEpost}" style="color:#A9761B;">${payload.kontaktEpost}</a> · ${payload.kontaktTelefon}</p>
     <p style="margin:0 0 8px;">Tjenester: ${payload.tjenester.join(', ') || 'Ingen valgt'}</p>
-    <p style="margin:0 0 16px;">Firmaattest: ${payload.firmaattestUrl ? 'lastet opp' : 'ikke lastet opp'}</p>
+    <p style="margin:0 0 16px;">Firmaattest: lastet opp</p>
     <p style="margin:0;text-align:center;">${emailButton(adminUrl, 'Åpne admin-panelet')}</p>
   `);
 

@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { getValidInviteByToken } from '@/lib/onboarding/invite';
 import { sendOnboardingSubmittedEmail } from '@/lib/email/send-onboarding-email';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
-import { validateOnboardingPayload } from '@/lib/validation/onboarding';
+import { validateOnboardingPayload, formatAksjonaererSummary } from '@/lib/validation/onboarding';
 
 export async function POST(request: Request) {
   try {
@@ -25,6 +25,7 @@ export async function POST(request: Request) {
     }
 
     const admin = createSupabaseAdminClient();
+    const aksjonaerSummary = formatAksjonaererSummary(validated.data.aksjonaerer);
     const { error } = await admin.from('onboarding_svar').insert({
       user_id: null,
       lead_id: invite.lead_id,
@@ -43,8 +44,9 @@ export async function POST(request: Request) {
       kontakt_epost: validated.data.kontaktEpost,
       kontakt_telefon: validated.data.kontaktTelefon,
       signaturrett: validated.data.signaturrett,
-      reelle_rettighetshavere: validated.data.reelleRettighetshavere,
-      eierandeler: validated.data.eierandeler,
+      reelle_rettighetshavere: aksjonaerSummary.reelleRettighetshavere,
+      eierandeler: aksjonaerSummary.eierandeler,
+      aksjonaerer: validated.data.aksjonaerer,
       pep: validated.data.pep,
       statsborgerskap: validated.data.statsborgerskap || null,
       bank: validated.data.bank || null,

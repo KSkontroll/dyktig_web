@@ -24,21 +24,157 @@ type Invite = {
   lead_id: string | null;
 };
 
+type Aksjonaer = {
+  navn: string;
+  eierandel: string;
+};
+
 type OnboardingSvar = {
   id: string;
   created_at: string;
-  foretaksnavn: string;
-  kontakt_epost: string;
   org_nr: string;
+  foretaksnavn: string;
+  selskapsform: string;
+  bransje: string | null;
+  adresse: string;
+  kommune: string;
+  registrert_enhetsreg: string;
+  nettside: string | null;
   firmaattest_url: string | null;
+  kontakt_navn: string;
+  kontakt_rolle: string;
+  kontakt_epost: string;
+  kontakt_telefon: string;
+  signaturrett: string;
+  reelle_rettighetshavere: string;
+  eierandeler: string;
+  aksjonaerer: Aksjonaer[] | null;
+  pep: string;
+  statsborgerskap: string | null;
+  bank: string | null;
+  dagens_system: string | null;
+  har_tripletex: string;
+  forrige_regnskapsforer: string | null;
+  tjenester: string[];
+  antall_ansatte: number;
+  omsetning_ifjor: number | null;
+  mva_registrert: string;
+  revisorpliktig: string;
+  oppstartsdato: string | null;
+  tilleggsinfo: string | null;
+  samtykke: boolean;
 };
+
+function parseAksjonaerer(value: unknown): Aksjonaer[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(
+    (item): item is Aksjonaer =>
+      !!item &&
+      typeof item === 'object' &&
+      typeof (item as Aksjonaer).navn === 'string' &&
+      typeof (item as Aksjonaer).eierandel === 'string',
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string | number | null | undefined }) {
+  if (value === null || value === undefined || value === '') return null;
+  return (
+    <div style={sx('display:grid;grid-template-columns:minmax(140px,34%) 1fr;gap:8px 16px;padding:8px 0;border-bottom:1px solid rgba(11,36,64,.06)')}>
+      <span style={sx('font-size:13px;font-weight:600;color:rgba(30,37,34,.55)')}>{label}</span>
+      <span style={sx('font-size:14px;color:var(--c-p);line-height:1.5')}>{value}</span>
+    </div>
+  );
+}
+
+function OnboardingDetail({ item }: { item: OnboardingSvar }) {
+  const aksjonaerer = parseAksjonaerer(item.aksjonaerer);
+  const [openingAttest, setOpeningAttest] = useState(false);
+
+  async function openFirmaattest() {
+    setOpeningAttest(true);
+    try {
+      const response = await fetch(`/api/admin/onboarding/firmaattest?id=${item.id}`);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? 'Kunne ikke åpne firmaattest.');
+      window.open(data.url, '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Kunne ikke åpne firmaattest.');
+    } finally {
+      setOpeningAttest(false);
+    }
+  }
+
+  return (
+    <div style={sx('margin-top:14px;padding-top:14px;border-top:1px solid rgba(11,36,64,.08)')}>
+      <DetailRow label="Selskapsform" value={item.selskapsform} />
+      <DetailRow label="Bransje" value={item.bransje} />
+      <DetailRow label="Adresse" value={item.adresse} />
+      <DetailRow label="Kommune" value={item.kommune} />
+      <DetailRow label="Enhetsregisteret" value={item.registrert_enhetsreg} />
+      <DetailRow label="Nettside" value={item.nettside} />
+      <DetailRow label="Kontaktperson" value={`${item.kontakt_navn} (${item.kontakt_rolle})`} />
+      <DetailRow label="Kontakt e-post" value={item.kontakt_epost} />
+      <DetailRow label="Kontakt telefon" value={item.kontakt_telefon} />
+      <DetailRow label="Signaturrett" value={item.signaturrett} />
+      {aksjonaerer.length > 0 ? (
+        <div style={sx('padding:12px 0;border-bottom:1px solid rgba(11,36,64,.06)')}>
+          <p style={sx('margin:0 0 8px;font-size:13px;font-weight:600;color:rgba(30,37,34,.55)')}>
+            Aksjonærer
+          </p>
+          {aksjonaerer.map((a, i) => (
+            <p key={i} style={sx('margin:0 0 4px;font-size:14px;color:var(--c-p)')}>
+              {a.navn} — {a.eierandel}
+            </p>
+          ))}
+        </div>
+      ) : (
+        <>
+          <DetailRow label="Reelle rettighetshavere" value={item.reelle_rettighetshavere} />
+          <DetailRow label="Eierandeler" value={item.eierandeler} />
+        </>
+      )}
+      <DetailRow label="PEP" value={item.pep} />
+      <DetailRow label="Statsborgerskap" value={item.statsborgerskap} />
+      <DetailRow label="Bank" value={item.bank} />
+      <DetailRow label="Regnskapssystem" value={item.dagens_system} />
+      <DetailRow label="Tripletex" value={item.har_tripletex} />
+      <DetailRow label="Forrige regnskapsfører" value={item.forrige_regnskapsforer} />
+      <DetailRow label="Tjenester" value={item.tjenester.join(', ') || 'Ingen valgt'} />
+      <DetailRow label="Ansatte med lønn" value={item.antall_ansatte} />
+      <DetailRow
+        label="Omsetning ifjor"
+        value={item.omsetning_ifjor != null ? `${item.omsetning_ifjor.toLocaleString('nb-NO')} kr` : null}
+      />
+      <DetailRow label="MVA-registrert" value={item.mva_registrert} />
+      <DetailRow label="Revisorpliktig" value={item.revisorpliktig} />
+      <DetailRow label="Ønsket oppstart" value={item.oppstartsdato} />
+      <DetailRow label="Tilleggsinfo" value={item.tilleggsinfo} />
+      {item.firmaattest_url ? (
+        <div style={sx('padding-top:12px')}>
+          <button
+            type="button"
+            disabled={openingAttest}
+            onClick={() => void openFirmaattest()}
+            style={sx(
+              "background:transparent;border:1.5px solid rgba(11,36,64,.2);color:var(--c-p);font-family:'Barlow',sans-serif;font-size:13px;font-weight:600;padding:8px 16px;border-radius:9999px;cursor:pointer",
+            )}
+          >
+            {openingAttest ? 'Åpner …' : 'Åpne firmaattest'}
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export function AdminDashboard() {
   const router = useRouter();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [invites, setInvites] = useState<Invite[]>([]);
   const [svar, setSvar] = useState<OnboardingSvar[]>([]);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [sendingKey, setSendingKey] = useState<string | null>(null);
   const [manualEmail, setManualEmail] = useState('');
   const [message, setMessage] = useState<string | null>(null);
@@ -49,17 +185,35 @@ export function AdminDashboard() {
 
   async function loadData() {
     setLoading(true);
+    setLoadError(null);
     const supabase = createSupabaseBrowserClient();
 
-    const [leadsRes, invitesRes, svarRes] = await Promise.all([
+    const [leadsRes, invitesRes, svarResponse] = await Promise.all([
       supabase.from('leads').select('id,created_at,navn,epost,telefon,estimat').order('created_at', { ascending: false }),
       supabase.from('onboarding_invites').select('id,email,sent_at,status,lead_id').order('sent_at', { ascending: false }),
-      supabase.from('onboarding_svar').select('id,created_at,foretaksnavn,kontakt_epost,org_nr,firmaattest_url').order('created_at', { ascending: false }),
+      fetch('/api/admin/onboarding'),
     ]);
+
+    if (leadsRes.error || invitesRes.error) {
+      setLoadError('Kunne ikke laste leads eller invitasjoner. Prøv å logge inn på nytt.');
+    }
+
+    let svarItems: OnboardingSvar[] = [];
+    if (svarResponse.ok) {
+      const svarData = await svarResponse.json();
+      svarItems = (svarData.items ?? []) as OnboardingSvar[];
+    } else {
+      const svarData = await svarResponse.json().catch(() => ({}));
+      setLoadError(
+        typeof svarData.error === 'string'
+          ? svarData.error
+          : 'Kunne ikke laste innsendte skjema. Prøv å logge inn på nytt.',
+      );
+    }
 
     setLeads(leadsRes.data ?? []);
     setInvites(invitesRes.data ?? []);
-    setSvar(svarRes.data ?? []);
+    setSvar(svarItems);
     setLoading(false);
   }
 
@@ -136,6 +290,12 @@ export function AdminDashboard() {
         </p>
       ) : null}
 
+      {loadError ? (
+        <p style={sx('margin:0 0 20px;padding:14px;border-radius:10px;background:#fff4f4;color:#8b1c1c')}>
+          {loadError}
+        </p>
+      ) : null}
+
       {loading ? <p>Laster …</p> : null}
 
       <section style={sx('display:flex;flex-direction:column;gap:28px')}>
@@ -144,7 +304,7 @@ export function AdminDashboard() {
             Send skjema manuelt
           </h2>
           <p style={sx('margin:0 0 18px;font-size:14px;color:rgba(30,37,34,.65)')}>
-            For kunder som ikke har brukt priskalkulatoren — de får innloggingslenke på e-post.
+            For kunder som ikke har brukt priskalkulatoren — de får personlig lenke på e-post.
           </p>
           <form
             style={sx('display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end')}
@@ -265,27 +425,45 @@ export function AdminDashboard() {
             Innsendte skjema
           </h2>
           {svar.length === 0 ? (
-            <p style={sx('margin:0;color:rgba(30,37,34,.6)')}>Ingen skjema er sendt inn ennå.</p>
+            <p style={sx('margin:0;color:rgba(30,37,34,.6)')}>
+              Ingen skjema er sendt inn ennå. Når en kunde sender inn via lenken, vises hele skjemaet her.
+            </p>
           ) : (
             <div style={sx('display:flex;flex-direction:column;gap:12px')}>
-              {svar.map((item) => (
-                <div
-                  key={item.id}
-                  style={sx('padding:16px;border:1px solid rgba(11,36,64,.08);border-radius:12px')}
-                >
-                  <p style={sx('margin:0 0 4px;font-weight:700;color:var(--c-p)')}>
-                    {item.foretaksnavn} ({item.org_nr})
-                  </p>
-                  <p style={sx('margin:0;font-size:14px;color:rgba(30,37,34,.7)')}>
-                    {item.kontakt_epost} · {new Date(item.created_at).toLocaleString('nb-NO')}
-                  </p>
-                  {item.firmaattest_url ? (
-                    <p style={sx('margin:6px 0 0;font-size:13px;color:var(--c-ad)')}>
-                      Firmaattest lastet opp
-                    </p>
-                  ) : null}
-                </div>
-              ))}
+              {svar.map((item) => {
+                const expanded = expandedId === item.id;
+                return (
+                  <div
+                    key={item.id}
+                    style={sx('padding:16px;border:1px solid rgba(11,36,64,.08);border-radius:12px')}
+                  >
+                    <div
+                      style={sx(
+                        'display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px',
+                      )}
+                    >
+                      <div>
+                        <p style={sx('margin:0 0 4px;font-weight:700;color:var(--c-p)')}>
+                          {item.foretaksnavn} ({item.org_nr})
+                        </p>
+                        <p style={sx('margin:0;font-size:14px;color:rgba(30,37,34,.7)')}>
+                          {item.kontakt_epost} · {new Date(item.created_at).toLocaleString('nb-NO')}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setExpandedId(expanded ? null : item.id)}
+                        style={sx(
+                          "background:transparent;border:1.5px solid rgba(11,36,64,.2);color:var(--c-p);font-family:'Barlow',sans-serif;font-size:13px;font-weight:600;padding:8px 16px;border-radius:9999px;cursor:pointer",
+                        )}
+                      >
+                        {expanded ? 'Skjul detaljer' : 'Vis hele skjemaet'}
+                      </button>
+                    </div>
+                    {expanded ? <OnboardingDetail item={item} /> : null}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

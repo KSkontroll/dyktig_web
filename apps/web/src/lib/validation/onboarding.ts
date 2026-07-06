@@ -1,3 +1,10 @@
+export type Aksjonaer = {
+  navn: string;
+  eierandel: string;
+};
+
+export const MAX_AKSJONAERER = 5;
+
 export type OnboardingPayload = {
   orgNr: string;
   foretaksnavn: string;
@@ -7,14 +14,13 @@ export type OnboardingPayload = {
   kommune: string;
   registrertEnhetsreg: string;
   nettside: string;
-  firmaattestUrl: string | null;
+  firmaattestUrl: string;
   kontaktNavn: string;
   kontaktRolle: string;
   kontaktEpost: string;
   kontaktTelefon: string;
   signaturrett: string;
-  reelleRettighetshavere: string;
-  eierandeler: string;
+  aksjonaerer: Aksjonaer[];
   pep: string;
   statsborgerskap: string;
   bank: string;
@@ -30,6 +36,45 @@ export type OnboardingPayload = {
   tilleggsinfo: string;
   samtykke: boolean;
 };
+
+export function formatAksjonaererSummary(aksjonaerer: Aksjonaer[]) {
+  return {
+    reelleRettighetshavere: aksjonaerer.map((a) => a.navn).join(' · '),
+    eierandeler: aksjonaerer.map((a) => `${a.navn}: ${a.eierandel}`).join(' · '),
+  };
+}
+
+function validateAksjonaerer(
+  aksjonaerer: unknown,
+): { ok: true; data: Aksjonaer[] } | { ok: false; error: string } {
+  if (!Array.isArray(aksjonaerer) || aksjonaerer.length < 1) {
+    return { ok: false, error: 'Oppgi minst én aksjonær.' };
+  }
+
+  if (aksjonaerer.length > MAX_AKSJONAERER) {
+    return { ok: false, error: `Du kan legge til maks ${MAX_AKSJONAERER} aksjonærer.` };
+  }
+
+  const normalized: Aksjonaer[] = [];
+
+  for (const item of aksjonaerer) {
+    if (!item || typeof item !== 'object') {
+      return { ok: false, error: 'Ugyldig aksjonærdata.' };
+    }
+
+    const entry = item as Partial<Aksjonaer>;
+    const navn = typeof entry.navn === 'string' ? entry.navn.trim() : '';
+    const eierandel = typeof entry.eierandel === 'string' ? entry.eierandel.trim() : '';
+
+    if (!navn || !eierandel) {
+      return { ok: false, error: 'Hver aksjonær må ha navn og eierandel.' };
+    }
+
+    normalized.push({ navn, eierandel });
+  }
+
+  return { ok: true, data: normalized };
+}
 
 export function validateOnboardingPayload(payload: unknown):
   | { ok: true; data: OnboardingPayload }
@@ -51,8 +96,6 @@ export function validateOnboardingPayload(payload: unknown):
     ['kontaktEpost', p.kontaktEpost],
     ['kontaktTelefon', p.kontaktTelefon],
     ['signaturrett', p.signaturrett],
-    ['reelleRettighetshavere', p.reelleRettighetshavere],
-    ['eierandeler', p.eierandeler],
     ['pep', p.pep],
     ['harTripletex', p.harTripletex],
     ['mvaRegistrert', p.mvaRegistrert],
@@ -81,6 +124,15 @@ export function validateOnboardingPayload(payload: unknown):
     return { ok: false, error: 'Ugyldig e-postadresse.' };
   }
 
+  if (!p.firmaattestUrl || typeof p.firmaattestUrl !== 'string' || !p.firmaattestUrl.trim()) {
+    return { ok: false, error: 'Firmaattest må lastes opp.' };
+  }
+
+  const aksjonaererResult = validateAksjonaerer(p.aksjonaerer);
+  if (!aksjonaererResult.ok) {
+    return aksjonaererResult;
+  }
+
   return {
     ok: true,
     data: {
@@ -92,14 +144,13 @@ export function validateOnboardingPayload(payload: unknown):
       kommune: p.kommune!.trim(),
       registrertEnhetsreg: p.registrertEnhetsreg!.trim(),
       nettside: (p.nettside ?? '').trim(),
-      firmaattestUrl: p.firmaattestUrl ?? null,
+      firmaattestUrl: p.firmaattestUrl.trim(),
       kontaktNavn: p.kontaktNavn!.trim(),
       kontaktRolle: p.kontaktRolle!.trim(),
       kontaktEpost: p.kontaktEpost!.trim(),
       kontaktTelefon: p.kontaktTelefon!.trim(),
       signaturrett: p.signaturrett!.trim(),
-      reelleRettighetshavere: p.reelleRettighetshavere!.trim(),
-      eierandeler: p.eierandeler!.trim(),
+      aksjonaerer: aksjonaererResult.data,
       pep: p.pep!.trim(),
       statsborgerskap: (p.statsborgerskap ?? '').trim(),
       bank: (p.bank ?? '').trim(),

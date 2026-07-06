@@ -119,6 +119,7 @@ export type Database = {
           signaturrett: string;
           reelle_rettighetshavere: string;
           eierandeler: string;
+          aksjonaerer: Json;
           pep: string;
           statsborgerskap: string | null;
           bank: string | null;
@@ -156,6 +157,7 @@ export type Database = {
           signaturrett: string;
           reelle_rettighetshavere: string;
           eierandeler: string;
+          aksjonaerer?: Json;
           pep: string;
           statsborgerskap?: string | null;
           bank?: string | null;
@@ -193,6 +195,7 @@ export type Database = {
           signaturrett?: string;
           reelle_rettighetshavere?: string;
           eierandeler?: string;
+          aksjonaerer?: Json;
           pep?: string;
           statsborgerskap?: string | null;
           bank?: string | null;
